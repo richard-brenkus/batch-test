@@ -1,5 +1,6 @@
 package org.example.controller;
 
+import org.example.service.EndpointServiceImpl;
 import org.springframework.batch.core.*;
 import org.springframework.batch.core.launch.JobLauncher;
 import org.springframework.batch.core.repository.JobExecutionAlreadyRunningException;
@@ -21,34 +22,22 @@ import java.nio.file.Paths;
 @RequestMapping("/jobs")
 public class JobController {
 
-    @Autowired
+    /*@Autowired
     private JobLauncher jobLauncher;
 
     @Autowired
-    private Job job;
+    private Job job;*/
+
+    @Autowired
+    EndpointServiceImpl endpointServiceImpl;
 
     private final String TEMP_STORAGE = "C:\\Data\\Batch-files";
 
     @PostMapping("/importCustomers")
     public void importCsvToDBJob(@RequestParam("file") MultipartFile multipartFile) {
 
-        try {
-            String originalFileName = multipartFile.getOriginalFilename();
-            File fileToImport = new File(TEMP_STORAGE + originalFileName);
-            multipartFile.transferTo(fileToImport);
+        endpointServiceImpl.importCsvRest(multipartFile);
 
-            JobParameters jobParameters = new JobParametersBuilder()
-                    .addString("fullPathFileName", TEMP_STORAGE + originalFileName)
-                    .addLong("startAt", System.currentTimeMillis()).toJobParameters();
-            JobExecution jobExecution = jobLauncher.run(job, jobParameters);
-
-            if(jobExecution.getExitStatus().getExitCode().equals((ExitStatus.COMPLETED)))
-                Files.deleteIfExists(Paths.get(TEMP_STORAGE + originalFileName));
-
-        } catch (JobExecutionAlreadyRunningException | JobRestartException | JobInstanceAlreadyCompleteException |
-                 JobParametersInvalidException | IOException e) {
-            e.printStackTrace();
-        }
     }
 
 

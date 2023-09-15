@@ -101,6 +101,15 @@ public class SpringBatchConfig {
         return taskExecutorPartitionHandler;
     }
 
+    public FlatFileItemReader<Customer> reader(){
+        FlatFileItemReader<Customer> itemReader = new FlatFileItemReader<>();
+        itemReader.setResource(new FileSystemResource("src/main/resources/customers.csv"));
+        itemReader.setName("csvReader");
+        itemReader.setLinesToSkip(1);
+        itemReader.setLineMapper(lineMapper());
+        return itemReader;
+    }
+
     @Bean
     public Step workerStep(FlatFileItemReader<Customer> itemReader) {
         return new StepBuilder("worker-step", jobRepository)
@@ -120,7 +129,7 @@ public class SpringBatchConfig {
     @Bean
     public Step managerStep(FlatFileItemReader<Customer> itemReader) {
         return new StepBuilder("manager-step", jobRepository)
-                .partitioner(workerStep(itemReader).getName(), partitioner())
+                .partitioner(workerStep(reader()).getName(), partitioner())
                 .partitionHandler(partitionHandler(itemReader))
                 .build();
     }
@@ -140,7 +149,7 @@ public class SpringBatchConfig {
     @Bean
     public Job runJob(FlatFileItemReader<Customer> itemReader){
         return new JobBuilder("importCustomers", jobRepository)
-                .flow(managerStep(itemReader))
+                .flow(managerStep(reader()))
                 .end()
                 .build();
     }
