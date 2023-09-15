@@ -2,15 +2,18 @@ package org.example.config;
 
 import lombok.AllArgsConstructor;
 import org.example.entity.Customer;
+import org.example.listener.StepSkipListener;
 import org.example.partition.ColumnRangePartitioner;
 import org.example.repository.CustomerRepository;
 import org.springframework.batch.core.Job;
+import org.springframework.batch.core.SkipListener;
 import org.springframework.batch.core.Step;
 import org.springframework.batch.core.job.builder.JobBuilder;
 import org.springframework.batch.core.partition.PartitionHandler;
 import org.springframework.batch.core.partition.support.TaskExecutorPartitionHandler;
 import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.core.step.builder.StepBuilder;
+import org.springframework.batch.core.step.skip.SkipPolicy;
 import org.springframework.batch.item.data.RepositoryItemWriter;
 import org.springframework.batch.item.file.FlatFileItemReader;
 import org.springframework.batch.item.file.LineMapper;
@@ -35,13 +38,11 @@ public class SpringBatchConfig {
 
  //   private CustomerRepository customerRepository;
 
-
     private JobRepository jobRepository;
     private PlatformTransactionManager transactionManager;
 
     //partitioning:
     private CustomerWriter customerWriter;
-
 
     public FlatFileItemReader<Customer> reader(){
         FlatFileItemReader<Customer> itemReader = new FlatFileItemReader<>();
@@ -75,9 +76,6 @@ public class SpringBatchConfig {
         return new CustomerProcessor();
     }
 
-
-
-
    /* public RepositoryItemWriter<Customer> writer(){
         RepositoryItemWriter<Customer> writer = new RepositoryItemWriter<>();
         writer.setRepository(customerRepository);
@@ -107,7 +105,12 @@ public class SpringBatchConfig {
                 .reader(reader())
                 .processor(processor())
                 .writer(customerWriter)
-          //      .taskExecutor(taskExecutor())
+                .faultTolerant()
+        //        .skipLimit(100)
+        //        .skip(Exception.class)
+        //        .taskExecutor(taskExecutor())
+                .listener(skipListener())
+                .skipPolicy(skipPolicy())
                 .build();
     }
 
@@ -140,8 +143,17 @@ public class SpringBatchConfig {
     }
 
     @Bean
-    public TaskExecutor taskExecutor(){
+    public SkipPolicy skipPolicy(){
+        return new ExceptionSkipPolicy();
+    };
 
+    @Bean
+    public SkipListener skipListener(){
+        return  new StepSkipListener();
+    }
+
+    @Bean
+    public TaskExecutor taskExecutor(){
 
         /*SimpleAsyncTaskExecutor asyncTaskExecutor = new SimpleAsyncTaskExecutor();
         asyncTaskExecutor.setConcurrencyLimit(10);
@@ -152,8 +164,6 @@ public class SpringBatchConfig {
         taskExecutor.setCorePoolSize(4);
         taskExecutor.setQueueCapacity(4);
         return taskExecutor;
-
-
     }
 
 
