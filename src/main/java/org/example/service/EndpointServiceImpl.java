@@ -19,7 +19,9 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.List;
 import java.util.Optional;
 
@@ -35,7 +37,7 @@ public class EndpointServiceImpl implements EndpointService{
     @Autowired
     CustomerRepository customerRepository;
 
-    private String TEMP_STORAGE = "C:/Data/Batch-files";
+    private String TEMP_STORAGE = "C:/Data/Batch-files/";
 
     @Override
     public void importCsvRest(MultipartFile multipartFile) {
@@ -74,20 +76,44 @@ public class EndpointServiceImpl implements EndpointService{
         return new ResponseEntity<Optional<List<Customer>>>(allCustomers, HttpStatus.OK);
     }
 
-    private void receiveFile(MultipartFile multipartFile){
+    public Path receiveFile(MultipartFile multipartFile){
+        Path filePath = Path.of(TEMP_STORAGE + "TEMP_FILE.csv");
+        System.out.println("TEMP_FILE.csv filePath: " + filePath);
 
         try {
             String originalFileName = multipartFile.getOriginalFilename();
             File fileToImport = new File(TEMP_STORAGE + originalFileName);
             multipartFile.transferTo(fileToImport);
+            new File(filePath.toString());
+            Files.copy(Path.of(TEMP_STORAGE + originalFileName), filePath, StandardCopyOption.REPLACE_EXISTING);
+            if(Files.exists(filePath))
+                System.out.println("temp file on path " + filePath + " exists");
+            else
+                System.out.println("temp file does not exist");
 
+        } catch (/*JobExecutionAlreadyRunningException | JobRestartException | JobInstanceAlreadyCompleteException |
+                 JobParametersInvalidException |*/ IOException e) {
+            e.printStackTrace();
+        }
+        return filePath;
+
+    }
+
+    public void processFile(Path filePath){
+
+        try {
             JobParameters jobParameters = new JobParametersBuilder()
-                    .addString("fullPathFileName", TEMP_STORAGE + originalFileName)
+                    .addString("fullPathFileName", filePath.toString())
                     .addLong("startAt", System.currentTimeMillis()).toJobParameters();
             JobExecution jobExecution = jobLauncher.run(job, jobParameters);
 
-            if (jobExecution.getExitStatus().getExitCode().equals((ExitStatus.COMPLETED)))
-                Files.deleteIfExists(Paths.get(TEMP_STORAGE + originalFileName));
+            if (jobExecution.getExitStatus().equals((ExitStatus.COMPLETED))) {
+                System.out.println("Job exit status is COMPLETED, deleting files: ");
+                System.out.println(filePath.toString());
+                System.out.println(TEMP_STORAGE + "TEMP_FILE.csv");
+                Files.deleteIfExists(filePath);
+                Files.deleteIfExists(Path.of(TEMP_STORAGE + "TEMP_FILE.csv"));
+            }
 
         } catch (JobExecutionAlreadyRunningException | JobRestartException | JobInstanceAlreadyCompleteException |
                  JobParametersInvalidException | IOException e) {

@@ -23,6 +23,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.FileSystemResource;
+import org.springframework.core.task.SimpleAsyncTaskExecutor;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -45,6 +46,8 @@ public class SpringBatchConfig {
     //partitioning:
     private CustomerWriter customerWriter;
 
+//    private String pathFile = "not yet set";
+
     @Bean
     @StepScope
     public FlatFileItemReader<Customer> itemReader(@Value("#{jobParameters[fullPathFileName]}") String pathToFile){
@@ -54,6 +57,18 @@ public class SpringBatchConfig {
         itemReader.setLinesToSkip(1);
         itemReader.setLineMapper(lineMapper());
 
+        return itemReader;
+    }
+
+    public FlatFileItemReader<Customer> reader(){
+
+        String TEMP_STORAGE = "C:/Data/Batch-files/TEMP_FILE.csv";
+
+        FlatFileItemReader<Customer> itemReader = new FlatFileItemReader<>();
+        itemReader.setResource(new FileSystemResource(TEMP_STORAGE));
+        itemReader.setName("csvReader");
+        itemReader.setLinesToSkip(1);
+        itemReader.setLineMapper(lineMapper());
         return itemReader;
     }
 
@@ -101,14 +116,7 @@ public class SpringBatchConfig {
         return taskExecutorPartitionHandler;
     }
 
-    public FlatFileItemReader<Customer> reader(){
-        FlatFileItemReader<Customer> itemReader = new FlatFileItemReader<>();
-        itemReader.setResource(new FileSystemResource("src/main/resources/customers.csv"));
-        itemReader.setName("csvReader");
-        itemReader.setLinesToSkip(1);
-        itemReader.setLineMapper(lineMapper());
-        return itemReader;
-    }
+
 
     @Bean
     public Step workerStep(FlatFileItemReader<Customer> itemReader) {
@@ -130,7 +138,7 @@ public class SpringBatchConfig {
     public Step managerStep(FlatFileItemReader<Customer> itemReader) {
         return new StepBuilder("manager-step", jobRepository)
                 .partitioner(workerStep(reader()).getName(), partitioner())
-                .partitionHandler(partitionHandler(itemReader))
+                .partitionHandler(partitionHandler(reader()))
                 .build();
     }
 
@@ -149,7 +157,7 @@ public class SpringBatchConfig {
     @Bean
     public Job runJob(FlatFileItemReader<Customer> itemReader){
         return new JobBuilder("importCustomers", jobRepository)
-                .flow(managerStep(reader()))
+                .flow(managerStep(itemReader))
                 .end()
                 .build();
     }
@@ -167,9 +175,9 @@ public class SpringBatchConfig {
     @Bean
     public TaskExecutor taskExecutor(){
 
-        /*SimpleAsyncTaskExecutor asyncTaskExecutor = new SimpleAsyncTaskExecutor();
-        asyncTaskExecutor.setConcurrencyLimit(10);
-        return asyncTaskExecutor;*/
+       /* SimpleAsyncTaskExecutor taskExecutor = new SimpleAsyncTaskExecutor();
+        taskExecutor.setConcurrencyLimit(10);
+        return taskExecutor;*/
 
         ThreadPoolTaskExecutor taskExecutor = new ThreadPoolTaskExecutor();
         taskExecutor.setMaxPoolSize(4);

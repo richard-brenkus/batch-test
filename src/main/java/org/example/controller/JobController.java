@@ -18,6 +18,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.Optional;
@@ -27,13 +28,15 @@ import java.util.Optional;
 public class JobController<T> {
 
     @Autowired
-    private EndpointService endpointService;
+    private EndpointServiceImpl endpointService;
 
     private final String TEMP_STORAGE = "C:\\Data\\Batch-files";
 
     @PostMapping("/importCustomers")
     public void importCsvToDBJob(@RequestParam("file") MultipartFile multipartFile) {
 
-        endpointService.importCsvRest(multipartFile);
+        //endpointService.importCsvRest(multipartFile);
+        Path filePath = endpointService.receiveFile(multipartFile);
+        endpointService.processFile(filePath);
     }
 }
